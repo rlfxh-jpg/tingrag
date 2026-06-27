@@ -2,7 +2,10 @@ import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from typing import List, Tuple
 
-from tinyrag.searcher.reranker.reranker_base import RankerBase
+try:
+    from tinyrag.searcher.reranker.reranker_base import RankerBase
+except ModuleNotFoundError:
+    from reranker_base import RankerBase
 
 class RerankerBGEM3(RankerBase):
     def __init__(self, model_id_key: str, device: str = "", is_api=False) -> None:
@@ -34,6 +37,5 @@ class RerankerBGEM3(RankerBase):
         top_n_results = scored_query_list[:top_n]
 
         return top_n_results
-
 
 
