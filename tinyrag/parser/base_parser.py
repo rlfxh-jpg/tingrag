@@ -4,7 +4,10 @@ from typing import List, Any, Optional, Dict
 try:
     from tinyrag.embedding.base_emb import BaseEmbedding
 except ModuleNotFoundError:
-    from base_emb import BaseEmbedding
+    try:
+        from embedding.base_emb import BaseEmbedding
+    except ModuleNotFoundError:
+        from base_emb import BaseEmbedding
 
 class BaseParser:
     """

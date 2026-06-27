@@ -4,7 +4,10 @@ import jieba
 from tqdm import tqdm
 from typing import List, Any, Tuple
 
-from tinyrag.searcher.bm25_recall.rank_bm25 import BM25Okapi
+try:
+    from tinyrag.searcher.bm25_recall.rank_bm25 import BM25Okapi
+except ModuleNotFoundError:
+    from rank_bm25 import BM25Okapi
 
 
 class BM25Retriever:
@@ -85,5 +88,4 @@ class BM25Retriever:
         ]
 
         return result
-
 
