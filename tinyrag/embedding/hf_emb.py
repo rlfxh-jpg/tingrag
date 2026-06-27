@@ -1,6 +1,9 @@
 import torch
 from typing import Dict, List, Optional, Tuple, Union
-from tinyrag.embedding.base_emb import BaseEmbedding
+try:
+    from tinyrag.embedding.base_emb import BaseEmbedding
+except ModuleNotFoundError:
+    from base_emb import BaseEmbedding
 from sentence_transformers import SentenceTransformer, util
 
 class HFSTEmbedding(BaseEmbedding):
@@ -16,4 +19,3 @@ class HFSTEmbedding(BaseEmbedding):
         st_embedding = self.st_model.encode([text], normalize_embeddings=True)
         return st_embedding[0].tolist()
     
-
