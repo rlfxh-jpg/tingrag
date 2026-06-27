@@ -29,6 +29,16 @@ class EmbRetriever:
         )
         self._next_id += 1
 
+    def insert_batch(self, rows: List[dict]):
+        if not rows:
+            return
+        self._ensure_collection()
+        self.client.insert(
+            collection_name=self.collection_name,
+            data=rows,
+        )
+        self._next_id = max(row["id"] for row in rows) + 1
+
     def save(self, index_name=""):
         if index_name:
             self.collection_name = index_name

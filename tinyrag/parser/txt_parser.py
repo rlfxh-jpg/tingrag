@@ -80,8 +80,18 @@ class TXTParser(BaseParser):
             self.parse_output = None
             return []
 
-        with open(self.file_path, "r", encoding="utf-8") as f:
-            raw_text = f.read()
+        raw_text = None
+        last_error = None
+        for encoding in ["utf-8", "utf-8-sig", "gb18030"]:
+            try:
+                with open(self.file_path, "r", encoding=encoding) as f:
+                    raw_text = f.read()
+                break
+            except UnicodeDecodeError as exc:
+                last_error = exc
+
+        if raw_text is None:
+            raise last_error
 
         # remove hyphens
         raw_text = re.sub(r"-\n(\w+)", r"\1", raw_text)
