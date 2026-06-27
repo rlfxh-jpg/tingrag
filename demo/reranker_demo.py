@@ -23,11 +23,15 @@ DEFAULT_RERANKER_MODEL_PATH = "models/bge-reranker-base"
 DEFAULT_LLM_MODEL_NAME = "qwythos-local"
 DEFAULT_LLM_BASE_URL = "http://127.0.0.1:8080/v1"
 DEFAULT_MILVUS_COLLECTION = "index_512"
-DEFAULT_QUERY = "杨帆有几个女人"
+DEFAULT_QUERY = "杨帆第一次破处是在哪里"
 DEFAULT_TOP_N = 5
 DEFAULT_DEVICE = "cpu"
 DEFAULT_MAX_TOKENS = 65536
 DEFAULT_TEMPERATURE = 0.3
+DEFAULT_FUSION_K = 60
+DEFAULT_BM25_WEIGHT = 1.2
+DEFAULT_EMB_WEIGHT = 1.0
+DEFAULT_RERANKER_WEIGHT = 1.5
 DEFAULT_SYSTEM_PROMPT = "你是一个严谨的中文 RAG 问答助手。"
 DEFAULT_RAG_PROMPT_TEMPLATE = """请根据下面的参考资料回答用户问题。
 
@@ -52,6 +56,62 @@ def build_rag_prompt(query, rerank_result):
         context_lines.append(f"[{index}] score={float(score):.6f}\n{text}")
     context = "\n\n".join(context_lines)
     return DEFAULT_RAG_PROMPT_TEMPLATE.format(question=query, context=context)
+
+
+def combine_recall_results(
+    bm25_recall_list,
+    emb_recall_list,
+    rerank_result,
+    top_n,
+    fusion_k=DEFAULT_FUSION_K,
+    bm25_weight=DEFAULT_BM25_WEIGHT,
+    emb_weight=DEFAULT_EMB_WEIGHT,
+    reranker_weight=DEFAULT_RERANKER_WEIGHT,
+):
+    text_to_item = {}
+
+    def ensure_item(text):
+        if text not in text_to_item:
+            text_to_item[text] = {
+                "text": text,
+                "fusion_score": 0.0,
+                "bm25_score": None,
+                "emb_score": None,
+                "reranker_score": None,
+                "bm25_rank": None,
+                "emb_rank": None,
+                "reranker_rank": None,
+            }
+        return text_to_item[text]
+
+    for rank, (_idx, text, score) in enumerate(bm25_recall_list, start=1):
+        item = ensure_item(text)
+        item["bm25_score"] = score
+        item["bm25_rank"] = rank
+        item["fusion_score"] += bm25_weight / (fusion_k + rank)
+
+    for rank, (_idx, text, score) in enumerate(emb_recall_list, start=1):
+        item = ensure_item(text)
+        item["emb_score"] = score
+        item["emb_rank"] = rank
+        item["fusion_score"] += emb_weight / (fusion_k + rank)
+
+    for rank, (score, text) in enumerate(rerank_result, start=1):
+        item = ensure_item(text)
+        item["reranker_score"] = float(score)
+        item["reranker_rank"] = rank
+        item["fusion_score"] += reranker_weight / (fusion_k + rank)
+
+    fused_items = sorted(
+        text_to_item.values(),
+        key=lambda item: item["fusion_score"],
+        reverse=True,
+    )
+    return fused_items[:top_n]
+
+
+def format_fused_result_for_prompt(fused_result):
+    return [(item["fusion_score"], item["text"]) for item in fused_result]
 
 
 def parse_args(argv=None):
@@ -135,6 +195,30 @@ def parse_args(argv=None):
         help="Number of reranked results to return.",
     )
     parser.add_argument(
+        "--fusion-k",
+        type=int,
+        default=DEFAULT_FUSION_K,
+        help="RRF fusion constant. Larger values make rank differences smoother.",
+    )
+    parser.add_argument(
+        "--bm25-weight",
+        type=float,
+        default=DEFAULT_BM25_WEIGHT,
+        help="Weight for BM25 recall rank in fusion scoring.",
+    )
+    parser.add_argument(
+        "--emb-weight",
+        type=float,
+        default=DEFAULT_EMB_WEIGHT,
+        help="Weight for embedding recall rank in fusion scoring.",
+    )
+    parser.add_argument(
+        "--reranker-weight",
+        type=float,
+        default=DEFAULT_RERANKER_WEIGHT,
+        help="Weight for reranker rank in fusion scoring.",
+    )
+    parser.add_argument(
         "--device",
         type=str,
         default=DEFAULT_DEVICE,
@@ -182,8 +266,18 @@ def main():
     for idx, text, score in emb_recall_list:
         recall_unique_text.add(text)
 
-    rerank_result = ranker.rank(args.query, list(recall_unique_text), args.top_n)
-    rag_prompt = build_rag_prompt(args.query, rerank_result)
+    rerank_result = ranker.rank(args.query, list(recall_unique_text), 2 * args.top_n)
+    fused_result = combine_recall_results(
+        bm25_recall_list,
+        emb_recall_list,
+        rerank_result,
+        args.top_n,
+        fusion_k=args.fusion_k,
+        bm25_weight=args.bm25_weight,
+        emb_weight=args.emb_weight,
+        reranker_weight=args.reranker_weight,
+    )
+    rag_prompt = build_rag_prompt(args.query, format_fused_result_for_prompt(fused_result))
     llm_answer = llm.generate(
         rag_prompt,
         system_prompt=DEFAULT_SYSTEM_PROMPT,
@@ -208,6 +302,23 @@ def main():
     for score, text in rerank_result:
         print(f"score={float(score):.6f}")
         print(text)
+        print()
+
+    print("\n=== Fused Result ===")
+    for item in fused_result:
+        print(
+            "fusion_score={:.6f} bm25_rank={} emb_rank={} reranker_rank={} "
+            "bm25_score={} emb_score={} reranker_score={}".format(
+                item["fusion_score"],
+                item["bm25_rank"],
+                item["emb_rank"],
+                item["reranker_rank"],
+                item["bm25_score"],
+                item["emb_score"],
+                item["reranker_score"],
+            )
+        )
+        print(item["text"])
         print()
 
     print("\n=== LLM Prompt ===")
