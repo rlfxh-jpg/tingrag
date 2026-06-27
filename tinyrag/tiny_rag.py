@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from tinyrag import BaseLLM, Qwen2LLM, TinyLLM
+from tinyrag import BaseLLM, GGUFLLM, Qwen2LLM, TinyLLM
 from tinyrag import Searcher
 from tinyrag import SentenceSplitter
 from tinyrag.utils import write_list_to_jsonl
@@ -63,8 +63,13 @@ class TinyRAG:
                 model_id_key=config.llm_model_id,
                 device=self.config.device
             )
+        elif self.config.model_type == "gguf":
+            self.llm:BaseLLM = GGUFLLM(
+                model_id_key=config.llm_model_id,
+                device=self.config.device
+            )
         else:
-            raise "failed init LLM, the model type is [qwen2, tinyllm]"
+            raise "failed init LLM, the model type is [qwen2, tinyllm, gguf]"
 
     def build(self, docs: List[str]):
         """ 注意： 构建数据库需要很长时间
@@ -120,5 +125,4 @@ class TinyRAG:
 
         return output
         
-
 
