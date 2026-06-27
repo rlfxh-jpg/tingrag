@@ -4,7 +4,10 @@ import sys
 import os
 from PIL import Image
 
-from .base_parser import BaseParser
+try:
+    from .base_parser import BaseParser
+except ImportError:
+    from base_parser import BaseParser
 
 
 class ImgParser(BaseParser):

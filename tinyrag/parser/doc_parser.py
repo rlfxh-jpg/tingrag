@@ -6,7 +6,10 @@ from docx import Document
 from typing import List, Dict, Tuple  
 from nltk.tokenize import sent_tokenize  
 
-from .base_parser import BaseParser
+try:
+    from .base_parser import BaseParser
+except ImportError:
+    from base_parser import BaseParser
 
 class WordParser(BaseParser):  
     """  

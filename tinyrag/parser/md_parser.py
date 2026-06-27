@@ -8,7 +8,10 @@ import markdown
 from bs4 import BeautifulSoup 
 from nltk.tokenize import sent_tokenize
 
-from .base_parser import BaseParser
+try:
+    from .base_parser import BaseParser
+except ImportError:
+    from base_parser import BaseParser
 
 
 class MDParser(BaseParser):

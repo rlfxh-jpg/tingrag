@@ -1,7 +1,10 @@
 from collections import defaultdict
 from typing import List, Any, Optional, Dict
 
-from tinyrag.embedding.base_emb import BaseEmbedding
+try:
+    from tinyrag.embedding.base_emb import BaseEmbedding
+except ModuleNotFoundError:
+    from base_emb import BaseEmbedding
 
 class BaseParser:
     """
