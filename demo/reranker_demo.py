@@ -26,8 +26,9 @@ DEFAULT_MILVUS_COLLECTION = "index_512"
 DEFAULT_QUERY = "美女"
 DEFAULT_TOP_N = 5
 DEFAULT_DEVICE = "cpu"
-DEFAULT_MAX_TOKENS = 65536
+DEFAULT_MAX_TOKENS = 4096
 DEFAULT_TEMPERATURE = 0.3
+DEFAULT_LLM_TIMEOUT = 600
 DEFAULT_FUSION_K = 60
 DEFAULT_BM25_WEIGHT = 1.2
 DEFAULT_EMB_WEIGHT = 1.0
@@ -177,6 +178,12 @@ def parse_args(argv=None):
         help="Maximum number of generated tokens.",
     )
     parser.add_argument(
+        "--llm-timeout",
+        type=int,
+        default=DEFAULT_LLM_TIMEOUT,
+        help="HTTP timeout seconds for the local LLM server.",
+    )
+    parser.add_argument(
         "--temperature",
         type=float,
         default=DEFAULT_TEMPERATURE,
@@ -254,6 +261,7 @@ def main():
         model_id_key=args.llm_model,
         base_url=args.llm_base_url,
         api_key=args.llm_api_key,
+        timeout=args.llm_timeout,
     )
 
     bm25_recall_list = bm25_retriever.search(args.query, 2 * args.top_n)
