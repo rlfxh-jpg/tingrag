@@ -18,7 +18,16 @@ def process_text(doc, emb_model, emb_retriever):
     emb_retriever.insert(doc_emb, doc)
 
 class Searcher:
-    def __init__(self, emb_model_id: str, ranker_model_id: str, device:str="cpu", base_dir: str="data/db") -> None:
+    def __init__(
+        self,
+        emb_model_id: str,
+        ranker_model_id: str,
+        device: str = "cpu",
+        base_dir: str = "data/db",
+        milvus_uri: str = "http://127.0.0.1:19530",
+        milvus_token: str = None,
+        milvus_collection: str = "",
+    ) -> None:
         # self.base_dir = "data/db"
         # emb_model_id = "models/bge-small-zh-v1.5"
         # ranker_model_id = "models/bge-reranker-base"
@@ -32,7 +41,13 @@ class Searcher:
         self.bm25_retriever = BM25Retriever(base_dir=self.base_dir+"/bm_corpus")
         self.emb_model = HFSTEmbedding(path = emb_model_id)
         index_dim = len(self.emb_model.get_embedding("test_dim"))
-        self.emb_retriever = EmbRetriever(index_dim=index_dim, base_dir=self.base_dir+"/faiss_idx")
+        self.emb_retriever = EmbRetriever(
+            index_dim=index_dim,
+            base_dir=self.base_dir+"/faiss_idx",
+            milvus_uri=milvus_uri,
+            milvus_token=milvus_token,
+            collection_name=milvus_collection if milvus_collection else f"index_{index_dim}",
+        )
 
         # 排序
         self.ranker = RerankerBGEM3(model_id_key = ranker_model_id, device=device)

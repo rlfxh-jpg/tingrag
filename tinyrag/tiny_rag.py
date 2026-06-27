@@ -37,6 +37,9 @@ class RAGConfig:
     sent_split_use_model:bool = False
     sentence_size:int = 256
     model_type: str = "tinyllm"
+    milvus_uri: str = "http://127.0.0.1:19530"
+    milvus_token: str = "root:Milvus"
+    milvus_collection: str = ""
 
 def process_docs_text(docs_text, sent_split_model):
     sent_res = sent_split_model.split_text(docs_text)
@@ -50,7 +53,10 @@ class TinyRAG:
             emb_model_id=config.emb_model_id,
             ranker_model_id=config.ranker_model_id,
             device=config.device,
-            base_dir=config.base_dir
+            base_dir=config.base_dir,
+            milvus_uri=config.milvus_uri,
+            milvus_token=config.milvus_token,
+            milvus_collection=config.milvus_collection,
         )
 
         if self.config.model_type == "qwen2":
@@ -125,4 +131,3 @@ class TinyRAG:
 
         return output
         
-

@@ -1,22 +1,26 @@
-import os
-from typing import List
+from typing import List, Optional
 
 from pymilvus import MilvusClient
 
 
 class EmbRetriever:
-    def __init__(self, index_dim: int, base_dir="data/db/faiss_idx") -> None:
+    def __init__(
+        self,
+        index_dim: int,
+        base_dir="data/db/faiss_idx",
+        milvus_uri: str = "http://127.0.0.1:19530",
+        milvus_token: Optional[str] = None,
+        collection_name: Optional[str] = None,
+    ) -> None:
         self.index_dim = index_dim
         self.base_dir = base_dir
-        os.makedirs(self.base_dir, exist_ok=True)
-
-        self.db_path = os.path.join(self.base_dir, "milvus_lite.db")
-        self.collection_name = f"index_{self.index_dim}"
-        self.client = MilvusClient(self.db_path)
+        self.collection_name = collection_name or f"index_{self.index_dim}"
+        self.client = MilvusClient(uri=milvus_uri, token=milvus_token)
         self._next_id = 0
 
     def insert(self, emb: list, doc: str):
         self._ensure_collection()
+        self._ensure_loaded()
         self.client.insert(
             collection_name=self.collection_name,
             data=[
@@ -33,6 +37,7 @@ class EmbRetriever:
         if not rows:
             return
         self._ensure_collection()
+        self._ensure_loaded()
         self.client.insert(
             collection_name=self.collection_name,
             data=rows,
@@ -43,15 +48,19 @@ class EmbRetriever:
         if index_name:
             self.collection_name = index_name
         self._ensure_collection()
+        self._ensure_loaded()
+        self.client.flush(collection_name=self.collection_name)
 
     def load(self, index_name=""):
         if index_name:
             self.collection_name = index_name
         self._ensure_collection()
+        self._ensure_loaded()
         self._next_id = self._infer_next_id()
 
     def search(self, embs: list, top_n=5):
         self._ensure_collection()
+        self._ensure_loaded()
         search_res = self.client.search(
             collection_name=self.collection_name,
             data=[embs],
@@ -71,7 +80,14 @@ class EmbRetriever:
                 dimension=self.index_dim,
             )
 
+    def _ensure_loaded(self):
+        load_state = self.client.get_load_state(collection_name=self.collection_name)
+        state = str(load_state.get("state", "")).lower()
+        if "loaded" not in state:
+            self.client.load_collection(collection_name=self.collection_name)
+
     def _infer_next_id(self) -> int:
+        self._ensure_loaded()
         query_res = self.client.query(
             collection_name=self.collection_name,
             filter="id >= 0",

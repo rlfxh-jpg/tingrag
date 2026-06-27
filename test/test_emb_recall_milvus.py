@@ -14,6 +14,8 @@ from txt_parser import TXTParser
 
 def test_emb_recall_milvus():
     base_dir = "test_milvus"
+    batch_size = 200
+    max_chunks = 3000
     if os.path.exists(base_dir):
         shutil.rmtree(base_dir)
 
@@ -40,17 +42,28 @@ def test_emb_recall_milvus():
                 "text": item["content"],
             }
         )
-    retriever.insert_batch(rows)
+        if len(rows) >= batch_size:
+            print('batch'+str(idx))
+            retriever.insert_batch(rows)
+            retriever.client.flush(collection_name=retriever.collection_name)
+            rows = []
+    if rows:
+        retriever.insert_batch(rows)
+        retriever.client.flush(collection_name=retriever.collection_name)
     retriever.save()
 
     loaded = EmbRetriever(index_dim=512, base_dir=base_dir)
     loaded.load()
-    query = "介绍一下杨凌"
+    query = "太平公主"
     query_emb = emb_model.get_embedding(query)
-    result = loaded.search(query_emb, top_n=3)
+    result = loaded.search(query_emb, top_n=30)
 
     assert len(result) > 0
-    print(result)
+    print(f"loaded_chunks: {len(rows)} / total_chunks: {len(parsed_items)}")
+    for idx, text, score in result:
+        print(f"id={idx} score={score}")
+        print(text)
+        print()
 
 
 if __name__ == "__main__":

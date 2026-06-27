@@ -7,5 +7,8 @@
     "sent_split_model_id": "models/nlp_bert_document-segmentation_chinese-base",
     "sent_split_use_model": false,
     "sentence_size": 256,
-    "model_type": "tinyllm"
+    "model_type": "tinyllm",
+    "milvus_uri": "http://127.0.0.1:19530",
+    "milvus_token": "root:Milvus",
+    "milvus_collection": ""
 }
